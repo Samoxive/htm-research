@@ -1,0 +1,8 @@
+build/
+*.o
+*.a
+*.asm
+*.lm
+*.out
+cmake-build-debug/ 
+.idea/
