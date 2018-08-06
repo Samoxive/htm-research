@@ -4,5 +4,6 @@ build/
 *.asm
 *.lm
 *.out
+*.so
 cmake-build-debug/ 
 .idea/
