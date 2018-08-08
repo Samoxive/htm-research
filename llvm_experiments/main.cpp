@@ -2,13 +2,12 @@
 #include "tm.h"
 
 int main() {
-    int x = 0, hash = 0, *ptr = nullptr;
-    __start_transaction();
-    hash = 16;
-    x = 32;
-    ptr = &x;
-    __end_transaction();
-    std::cout << "Expected hash: " << __crc32(__crc32(__crc32(0, (long) hash), (long) x), (long) ptr) << std::endl;
-    std::cout << "Ptr: " << ptr << " Sum: " << ((long) ptr + (long) x + (long) hash) << " Hash: " << __get_hash();
-    return x;
+    int x = 0;
+    __start_store_instrumentation();
+    if (!__start_transaction()) {
+        x = 32;
+    }
+    __end_store_instrumentation();
+    int hash = __get_instrumentation_hash();
+    return hash;
 }
