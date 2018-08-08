@@ -10,12 +10,10 @@
 
 using namespace llvm;
 
-const auto TM_START_FUNCTION_NAME = "__start_transaction";
-const auto TM_END_FUNCTION_NAME = "__end_transaction";
-const auto TM_GET_HASH_FUNCTION_NAME = "__get_hash";
+const auto INSTRUMENTATION_START_FUNCTION_NAME = "__start_store_instrumentation";
+const auto INSTRUMENTATION_END_FUNCTION_NAME = "__end_store_instrumentation";
+const auto INSTRUMENTATION_GET_HASH_FUNCTION_NAME = "__get_instrumentation_hash";
 const auto TM_CRC32_FUNCTION_NAME = "__crc32";
-const auto TM_BEGIN_ASM = "tbegin. 0";
-const auto TM_END_ASM = "tend. 0";
 
 namespace {
     struct SamPass : public FunctionPass {
@@ -53,25 +51,19 @@ namespace {
                 return false;
             }
 
-            auto void_function_type = FunctionType::get(Type::getVoidTy(context), false);
-            auto *tbegin_instruction = InlineAsm::get(void_function_type, TM_BEGIN_ASM, "", false);
-            auto *tend_instruction = InlineAsm::get(void_function_type, TM_END_ASM, "", false);
-
-            bool is_powerpc = module->getTargetTriple().find("powerpc") != std::string::npos;
-            outs() << "Target triple: " << module->getTargetTriple();
             bool modified = false;
             std::vector<Instruction *> to_be_deleted;
+            bool in_transaction = false;
+            Value *hash_variable_stack = nullptr;
+            Value *hash_variable_reg = nullptr;
             for (auto &B: F) {
-                bool in_transaction = false;
-                Value *hash_variable_stack = nullptr;
-                Value *hash_variable_reg = nullptr;
                 for (auto &I: B) {
                     auto &context = I.getContext();
                     IRBuilder<> builder(&I);
                     builder.SetInsertPoint(&B, builder.GetInsertPoint());
                     if (auto *inst = dyn_cast<CallInst>(&I)) {
                         auto function_name = inst->getOperand(0)->getName();
-                        if (function_name.equals(TM_START_FUNCTION_NAME)) {
+                        if (function_name.equals(INSTRUMENTATION_START_FUNCTION_NAME)) {
                             if (hash_variable_stack != nullptr) {
                                 context.emitError("Function tried to start transaction that was already started!\n");
                                 return modified;
@@ -80,22 +72,16 @@ namespace {
                             builder.CreateStore(ConstantInt::get(IntegerType::getInt32Ty(context), 0, true),
                                                 hash_variable_stack);
                             hash_variable_reg = builder.CreateLoad(hash_variable_stack);
-                            if (is_powerpc) {
-                                builder.CreateCall(tbegin_instruction);
-                            }
                             modified = true;
                             in_transaction = true;
-                        } else if (function_name.equals(TM_END_FUNCTION_NAME)) {
+                        } else if (function_name.equals(INSTRUMENTATION_END_FUNCTION_NAME)) {
                             if (hash_variable_stack == nullptr) {
                                 context.emitError("Function tried to end transaction that is non-existent!\n");
                                 return modified;
                             }
 
-                            if (is_powerpc) {
-                                builder.CreateCall(tend_instruction);
-                            }
                             in_transaction = false;
-                        } else if (function_name.equals(TM_GET_HASH_FUNCTION_NAME)) {
+                        } else if (function_name.equals(INSTRUMENTATION_GET_HASH_FUNCTION_NAME)) {
                             if (hash_variable_stack == nullptr) {
                                 context.emitError("Function tried to get hash without creating a transaction!\n");
                                 return modified;
@@ -136,6 +122,7 @@ namespace {
             }
 
             outs() << F;
+
             return modified;
         }
     };

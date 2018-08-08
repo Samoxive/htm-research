@@ -1,12 +1,84 @@
 #pragma once
 #include <cstdint>
+#ifdef POWERPC
+    #include <htmxlintrin.h>
+    #define MAX_TRANSACTION_RETRY_COUNT 10
+    extern "C"
+    int __start_transaction() {
+        int try_count = MAX_TRANSACTION_RETRY_COUNT;
+        TM_buff_type tm_buffer = { 0 };
+        while (true) {
+            if (__TM_begin(tm_buffer) == _HTM_TBEGIN_STARTED) {
+                return 0;
+            } else {
+                // a failure happened
+                if (try_count-- <= 0 || __TM_is_failure_persistent(tm_buffer)) {
+                    // transaction failed for sure or we retried too much
+                    if (__TM_is_failure_persistent(tm_buffer)) {
+                        std::cout << "Persistent fault" << std::endl;
+                    } else if (__TM_is_conflict(tm_buffer)) {
+                        std::cout << "Conflict fault" << std::endl;
+                    } else if (__TM_is_footprint_exceeded(tm_buffer)) {
+                        std::cout << "Footprint exceeded" << std::endl;
+                    } else if (__TM_is_nested_too_deep(tm_buffer)) {
+                        std::cout << "Transaction nested too deep" << std::endl;
+                    } else if (__TM_is_illegal(tm_buffer)) {
+                        std::cout << "Transaction is illegal" << std::endl;
+                    } else if (__TM_is_user_abort(tm_buffer)) {
+                        std::cout << "User abort" << std::endl;
+                    } else {
+                        std::cout << "Unknown transaction abort reason" << std::endl;
+                    }
+
+                    return -1;
+                }
+            }
+        }
+    }
+
+    extern "C"
+    void end_transaction() {
+         __TM_end();
+    }
+
+    extern "C"
+    void abort_transaction() {
+         __TM_abort();
+    }
+
+    extern "C"
+    void suspend_transaction() {
+        __TM_suspend();
+    }
+
+    extern "C"
+    void resume_transaction() {
+        __TM_resume();
+    }
+#else
+    extern "C"
+    int __start_transaction() { return 0; }
+
+    extern "C"
+    void end_transaction() {}
+
+    extern "C"
+    void abort_transaction() {}
+
+    extern "C"
+    void suspend_transaction() {}
+
+    extern "C"
+    void resume_transaction() {}
+#endif
+
 
 extern "C"
-void __start_transaction() {};
+void __start_store_instrumentation() {};
 extern "C"
-void __end_transaction() {};
+void __end_store_instrumentation() {};
 extern "C"
-uint32_t __get_hash() {
+uint32_t __get_instrumentation_hash() {
     return 0;
 }
 
