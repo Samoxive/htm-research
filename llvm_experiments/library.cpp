@@ -16,10 +16,10 @@ const auto INSTRUMENTATION_GET_HASH_FUNCTION_NAME = "__get_instrumentation_hash"
 const auto TM_CRC32_FUNCTION_NAME = "__crc32";
 
 namespace {
-    struct SamPass : public FunctionPass {
+    struct StoreInstructionInstrumentationPass : public FunctionPass {
         static char ID;
 
-        SamPass() : FunctionPass(ID) {}
+        StoreInstructionInstrumentationPass() : FunctionPass(ID) {}
 
         Value *castToLong(Value *value, IRBuilder<> &builder) {
             Value *rawIntValue;
@@ -128,10 +128,10 @@ namespace {
     };
 }
 
-char SamPass::ID = 0;
+char StoreInstructionInstrumentationPass::ID = 0;
 
 static void registerSkeletonPass(const PassManagerBuilder &, legacy::PassManagerBase &PM) {
-    PM.add(new SamPass());
+    PM.add(new StoreInstructionInstrumentationPass());
 }
 
 static RegisterStandardPasses RegisterMyPass(PassManagerBuilder::EP_EarlyAsPossible, registerSkeletonPass);
