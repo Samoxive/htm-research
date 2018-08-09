@@ -5,5 +5,4 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_FLAGS "-fno-rtti")
 
-find_library(LLVM_DIR llvm)
 add_library(llvm_experiments SHARED library.cpp)
